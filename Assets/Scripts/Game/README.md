@@ -48,3 +48,51 @@ All timing and round count are serialized fields on `GameFlow`:
 - Answers are shown with the author's index during reveal (not fully anonymous).
 - No "no answer" penalty; players who don't answer just show "(no answer)".
 - If the host disconnects, the game ends (host migration is disabled in the template).
+
+---
+
+# Drawing Mechanic Prototype (Drawful-style)
+
+A standalone prototype proving a drawing canvas can be sent through the server
+like text answers (E3 pattern). The text game is untouched.
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `DrawingCanvas.cs` | Reusable drawing UI: RawImage + Texture2D, mouse-drag brush, Clear, PNG export |
+| `DrawingBoard.cs` | NetworkBehaviour prototype: Submit via `[ServerRpc]`, `SyncList<byte[]>` storage, reveal row |
+
+## Setup (in Unity)
+
+1. In `MainGame`, right-click → Create Empty, name it `DrawingBoard`.
+2. Add Component → **DrawingBoard**.
+3. **Save the scene** (Ctrl+S).
+
+## Test
+
+1. Play in the Editor (host) + run the clone (client) via ParrelSync.
+2. Draw on each window with the mouse.
+3. Click **Submit** on each.
+4. Both windows show both drawings in the reveal row at the bottom.
+
+## How it works
+
+- `DrawingCanvas` paints into a 256×256 `Texture2D` (white background, black brush).
+- On Submit, `EncodeToPNG()` → `byte[]` → base64 `string` → `[ServerRpc] SubmitDrawing(string)`.
+- The server stores it locally, then broadcasts it to all clients via `[ObserversRpc]`.
+- Each client decodes base64 → bytes → `Texture2D.LoadImage()` → shows it as a `RawImage`.
+
+## Why base64 string via RPC (not byte[], ByteData, SyncList<byte[]> or SyncTextureFile)
+
+- `SyncTextureFile` uses file I/O (`filePath`), which breaks in WebGL (no file system).
+- PurrNet's codegen rejects `byte[]` and `ByteData` as RPC parameters (the NetworkBehaviour
+  silently fails to register — "no monobehavior scripts in the file"). `string` is a
+  proven codegen-safe type (GameFlow uses it), so base64-encoding the PNG works everywhere.
+
+## Next steps (integration into the real game)
+
+- Swap the `GameUI` text input for a `DrawingCanvas` during the answer phase.
+- Add a parallel `SyncList<byte[]>` for drawings (or replace `_answers`).
+- Vote on drawings instead of text.
+- Add touch input (`Touchscreen.current`) for mobile WebGL browsers.
