@@ -58,6 +58,12 @@ ExportedObj/
 *.slnx
 *.suo
 *.tmp
+
+# ParrelSync clones (separate editor instances for multiplayer testing)
+*_clone_*/
+
+# Local build outputs (e.g. TestBuilds, TestBuilds2)
+TestBuilds*/
 *.user
 *.userprefs
 *.pidb

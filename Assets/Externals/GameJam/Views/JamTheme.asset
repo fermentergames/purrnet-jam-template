@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56c775d8c82442a40907c8969d62b035, type: 3}
   m_Name: JamTheme
   m_EditorClassIdentifier: PurrUI.Runtime::PurrNet.UI.ColorPalette
-  _black: {r: 0.019607844, g: 0.023529414, b: 0.023529414, a: 1}
-  _white: {r: 1, g: 1, b: 1, a: 1}
+  _black: {r: 0.11360803, g: 0.21698111, b: 0.21698111, a: 1}
+  _white: {r: 0.92080396, g: 1, b: 0.6179246, a: 1}
   _muted: {r: 0.62352943, g: 0.62352943, b: 0.6627451, a: 1}
-  _background: {r: 0.019607844, g: 0.023529414, b: 0.023529414, a: 1}
-  _foreground: {r: 1, g: 1, b: 1, a: 1}
-  _surface: {r: 0.09019608, g: 0.09411766, b: 0.10196079, a: 1}
-  _surfaceForeground: {r: 1, g: 1, b: 1, a: 1}
+  _background: {r: 0.23584908, g: 0.09678713, b: 0.2119287, a: 1}
+  _foreground: {r: 0.7877358, g: 0.9871068, b: 1, a: 1}
+  _surface: {r: 0.3490566, g: 0.1160819, b: 0.060920257, a: 1}
+  _surfaceForeground: {r: 1, g: 0.7028302, b: 0.9233362, a: 1}
   _accent: {r: 0.9803922, g: 1, b: 0, a: 1}
   _accentForeground: {r: 0, g: 0, b: 0, a: 1}
   _success: {r: 0.09019608, g: 0.78823537, b: 0.3921569, a: 1}
