@@ -140,7 +140,37 @@ game-over handling, and relay networking. We added the actual game on top.
 
 ---
 
-## 8. Next steps (Phase F — polish + jam readiness)
+## 8. Post-jam hosting options (PurrNet)
+
+**How the server works now:** listen-server (host-authoritative). Whoever creates the
+lobby is the host — their machine runs the authoritative game logic. The `PurrTransport`
+relay (free during the jam) just forwards packets between players; it is NOT a game server.
+
+**Does PurrNet charge for the relay?** No. PurrNet core is free and open-source. The
+pricing page is only optional support (House Cat $20/mo, Royal British $100/mo, Studio
+$500/mo). The default relay is free for development; production use of the default relay
+is prohibited, but you can **self-host the relay for free** (it's open-source).
+
+**Self-hosting the relay:** the relay server is the `PurrLay` repo (with `PurrBalancer`
+for room registration) in the PurrNet GitHub org. Deploy it on a VPS/cloud VM, then point
+the `PurrTransport` component at it via `SetServer()` / the `masterServer` field.
+Difficulty: moderate (standard "run a .NET service on a server" task).
+
+**Options for a post-jam game:**
+
+| Option | Cost | Effort | Best for |
+|--------|------|--------|----------|
+| Self-host PurrLay relay | Server cost only | Moderate | Keep the current host+relay model |
+| Direct UDP / WebTransport | Free | Low | Known IPs / LAN / small groups |
+| Steam / EOS transport | Free (platform) | Low | Steam/EOS games (P2P, no relay) |
+| Dedicated server (Edgegap/Gameye) | Pay per use | Higher | Bigger/competitive games |
+
+For a party game like this, the simplest production path is self-hosting `PurrLay` or
+using a platform transport (Steam/EOS) — both keep the host-authoritative model.
+
+---
+
+## 9. Next steps (Phase F — polish + jam readiness)
 
 1. **Sound (20% of score)** — game is silent. Add SFX (submit/vote/reveal/countdown) + music.
 2. **Art (20%)** — reuse `JamTheme` palette + template art; nicer panels/title screen.
