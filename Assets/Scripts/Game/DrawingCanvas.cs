@@ -20,6 +20,9 @@ namespace Jam
         [SerializeField] private int _brushSize = 6;
         [SerializeField] private Color _brushColor = Color.black;
 
+        /// <summary>When false, the canvas is read-only (shows content but ignores input).</summary>
+        public bool interactable = true;
+
         private Texture2D _texture;
         private bool _drawing;
         private Vector2 _lastPixel;
@@ -60,6 +63,12 @@ namespace Jam
             ClearTexture();
         }
 
+        /// <summary>Set the brush color used for this canvas (call before drawing).</summary>
+        public void SetBrushColor(Color color)
+        {
+            _brushColor = color;
+        }
+
         /// <summary>Load a PNG into the canvas (replaces current content) so you can draw on top.</summary>
         public void LoadImage(byte[] png)
         {
@@ -71,6 +80,12 @@ namespace Jam
 
         private void Update()
         {
+            if (!interactable)
+            {
+                _drawing = false;
+                return;
+            }
+
             var mouse = Mouse.current;
             if (mouse == null || _texture == null)
                 return;
