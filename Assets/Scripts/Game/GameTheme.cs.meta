@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 761163ca49e3a70409055ac392c685ef
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - panelSprite: {fileID: 21300000, guid: aa6146b7f7e74854a97aa07fb1e57671, type: 3}
+  - borderSprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  - shadowSprite: {fileID: 21300000, guid: af136acb51fde1b48929b01a08f79e84, type: 3}
+  - brushCursorSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

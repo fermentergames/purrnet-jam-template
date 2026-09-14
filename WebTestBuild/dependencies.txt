@@ -10,7 +10,6 @@ com.unity.render-pipelines.universal@17.6.0
 com.unity.test-framework@1.8.0
 com.unity.ugui@2.6.0
 com.unity.visualscripting@1.9.12
-dev.purrnet.purrnet@1.23.0-beta.41
 dev.purrnet.services@1.1.2
 dev.purrnet.ui@1.6.0-beta.1
 com.veriorpies.parrelsync@1.5.2
@@ -48,5 +47,6 @@ com.unity.modules.vehicles@1.0.0
 com.unity.modules.video@1.0.0
 com.unity.modules.wind@1.0.0
 com.unity.modules.xr@1.0.0
-dev.purrnet.purrlobby@1.1.0-beta.2
+dev.purrnet.purrnet@1.23.0-beta.51
+dev.purrnet.purrlobby@1.1.0-beta.6
 com.unity.template.urp-blank@17.2.1

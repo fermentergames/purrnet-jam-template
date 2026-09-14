@@ -488,7 +488,7 @@ namespace Jam
             button.targetGraphic = img;
             button.onClick.AddListener(() => onClick?.Invoke());
 
-            var text = CreateText("Label", go.transform, 24);
+            var text = CreateText("Label", go.transform, 32);
             text.text = label;
             text.color = Color.black;
             SetAnchors(text.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);

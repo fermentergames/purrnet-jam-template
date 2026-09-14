@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using PurrNet.UI;
 using UnityEngine;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace PurrNet.Lobby
 {
@@ -29,23 +30,43 @@ namespace PurrNet.Lobby
 
         public async Task InitializeAsync()
         {
+            var sw = Stopwatch.StartNew();
             GameOrchestrator.active = _orchestrator;
+            UnityEngine.Debug.Log($"[LobbyManager] InitializeAsync start (t={sw.ElapsedMilliseconds}ms)");
 
             if (_orchestrator.sessionProvider)
+            {
+                UnityEngine.Debug.Log($"[LobbyManager] sessionProvider.Login starting (t={sw.ElapsedMilliseconds}ms)");
                 await _orchestrator.sessionProvider.Login(_stack);
+                UnityEngine.Debug.Log($"[LobbyManager] sessionProvider.Login done (t={sw.ElapsedMilliseconds}ms)");
+            }
 
             if (_orchestrator.lobbyProvider)
+            {
+                UnityEngine.Debug.Log($"[LobbyManager] lobbyProvider.Initialize starting (t={sw.ElapsedMilliseconds}ms)");
                 await _orchestrator.lobbyProvider.Initialize();
+                UnityEngine.Debug.Log($"[LobbyManager] lobbyProvider.Initialize done (t={sw.ElapsedMilliseconds}ms)");
+            }
 
             if (_orchestrator.matchmakingProvider)
+            {
+                UnityEngine.Debug.Log($"[LobbyManager] matchmakingProvider.Initialize starting (t={sw.ElapsedMilliseconds}ms)");
                 await _orchestrator.matchmakingProvider.Initialize();
+                UnityEngine.Debug.Log($"[LobbyManager] matchmakingProvider.Initialize done (t={sw.ElapsedMilliseconds}ms)");
+            }
 
             if (_orchestrator.gameAllocator)
+            {
+                UnityEngine.Debug.Log($"[LobbyManager] gameAllocator.Initialize starting (t={sw.ElapsedMilliseconds}ms)");
                 await _orchestrator.gameAllocator.Initialize();
+                UnityEngine.Debug.Log($"[LobbyManager] gameAllocator.Initialize done (t={sw.ElapsedMilliseconds}ms)");
+            }
 
             SubscribeExternalJoin();
 
+            UnityEngine.Debug.Log($"[LobbyManager] Pushing MainMenuView (t={sw.ElapsedMilliseconds}ms)");
             _stack.Push<MainMenuView>().Setup(this, _orchestrator);
+            UnityEngine.Debug.Log($"[LobbyManager] MainMenuView pushed (t={sw.ElapsedMilliseconds}ms)");
         }
 
         private void SubscribeExternalJoin()
