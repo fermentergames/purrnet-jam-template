@@ -43,6 +43,7 @@ namespace Jam
 
         // Drawing
         private StrokeCanvas _drawCanvas;
+        private BrushCursor _brushCursor;
         private CanvasMover _drawMover;
         private CanvasModeProps _modeProps;
         private RectTransform _canvasWrap;
@@ -332,8 +333,8 @@ namespace Jam
             // follows the pointer in screen space (arm can reach the screen edge).
             if (Theme.brushCursorSprite != null)
             {
-                var cursor = CreateBrushCursor(_drawingPanel.transform);
-                _drawCanvas.SetBrushCursor(cursor);
+                _brushCursor = CreateBrushCursor(_drawingPanel.transform);
+                _drawCanvas.SetBrushCursor(_brushCursor);
             }
 
             // Brush controls
@@ -396,7 +397,7 @@ namespace Jam
 
             // "What is this?" label between the canvas and the guess list.
             _whatIsThisText = CreateText("WhatIsThis", _guessingPanel.transform, 40, Theme.text);
-            SetAnchors(_whatIsThisText.rectTransform, new Vector2(0.5f, 0.62f), new Vector2(0.5f, 0.62f),
+            SetAnchors(_whatIsThisText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(-600, -20), new Vector2(600, 20));
             _whatIsThisText.text = "What is this?";
             _whatIsThisText.gameObject.SetActive(false);
@@ -484,7 +485,7 @@ namespace Jam
             showcaseGo.transform.SetParent(_finalPanel.transform, false);
             _showcaseScroll = showcaseGo.GetComponent<RectTransform>();
             SetAnchors(_showcaseScroll, new Vector2(0.5f, 0.35f), new Vector2(0.5f, 0.35f),
-                new Vector2(-700, -300), new Vector2(700, 300));
+                new Vector2(-700, -380), new Vector2(700, 380));
             showcaseGo.AddComponent<RectMask2D>();
 
             var contentGo = new GameObject("ShowcaseContent", typeof(RectTransform));
@@ -560,6 +561,9 @@ namespace Jam
             }
             SizeDrawingCanvas();
             SizeRevealCanvas();
+            SizeGuessList();
+            SizeGuessInput();
+            SizeWhatIsThis();
 
             // Reposition the prompt to its settled top position.
             if (_introText != null && _introText.gameObject.activeSelf)
@@ -573,6 +577,11 @@ namespace Jam
         {
             if (_flow == null)
                 return;
+
+            // Make sure the player-list mirrors reflect the latest synced value before
+            // any phase reads PlayerNames (PurrNet may deliver the initial SyncVar value
+            // without firing onChanged, leaving a client's list empty).
+            _flow.EnsurePlayerStateParsed();
 
             var phase = _flow.Phase;
             var modeLabel = phase == MovingPhase.Drawing ? $"  |  {_flow.CurrentMovementMode}" : "";
@@ -740,6 +749,13 @@ namespace Jam
             }
             if (_modeProps != null)
                 _modeProps.Resize();
+            // Size the cursor proportionally to the canvas, and give it the canvas's
+            // horizontal half-extent so its tilt maps to the drawing area.
+            if (_brushCursor != null)
+            {
+                _brushCursor.SetSize(canvasSize * 0.6f);
+                _brushCursor.SetCanvasHalfWidth((canvasSize + 48) * 0.5f);
+            }
         }
 
         /// <summary>Size and position the reveal canvas to sit just below the top bar, up to 70% of screen width on portrait/mobile.</summary>
@@ -763,7 +779,7 @@ namespace Jam
 
             _revealRawRt.sizeDelta = new Vector2(size - 80, size - 80);
             if (_revealBorderRt != null)
-                _revealBorderRt.sizeDelta = new Vector2(size - 64, size - 64);
+                _revealBorderRt.sizeDelta = new Vector2(size - 8, size - 8);
         }
 
         private void RefreshDrawing()
@@ -1084,6 +1100,9 @@ namespace Jam
             var isArtist = _flow.IsArtist(canvas);
             var alreadyCorrect = LocalPlayerAlreadyCorrect(canvas);
             var canGuess = !isArtist && !alreadyCorrect;
+            // Never show the "What is this?" label to the player who drew this canvas.
+            if (isArtist)
+                _whatIsThisText.gameObject.SetActive(false);
             _guessStatus.text = isArtist
                 ? $"Canvas {canvas + 1} — you drew this. Watch others guess!"
                 : alreadyCorrect
@@ -1145,9 +1164,10 @@ namespace Jam
             _revealPromptText.rectTransform.localScale = Vector3.one * 0.5f;
             _revealPromptLabel.rectTransform.localScale = Vector3.one * 0.5f;
             yield return UITween.ScaleTo(this, _revealPromptBg.rectTransform, Vector3.one, 0.2f, EaseOut);
+            // Label pops in first, then the big prompt.
+            yield return UITween.ScaleTo(this, _revealPromptLabel.rectTransform, Vector3.one, 0.15f, EaseOut);
             yield return UITween.ScaleTo(this, _revealPromptText.rectTransform, Vector3.one * 1.15f, 0.2f, EaseOut);
             yield return UITween.ScaleTo(this, _revealPromptText.rectTransform, Vector3.one, 0.15f, EaseOut);
-            yield return UITween.ScaleTo(this, _revealPromptLabel.rectTransform, Vector3.one, 0.15f, EaseOut);
         }
 
         private IEnumerator AnimateWhatIsThis()
@@ -1226,7 +1246,7 @@ namespace Jam
 
             var canvas = _flow.CurrentGuessCanvas;
             var built = 0;
-            var maxRows = 8;
+            var maxRows = 6;
             // Keep only the newest maxRows guesses for this canvas so the list stays fitting.
             var indices = new List<int>();
             for (var i = 0; i < GuessCount; i++)
@@ -1312,7 +1332,7 @@ namespace Jam
         }
 
         /// <summary>Build a row with a color swatch, optional icon, name, and a right-side label.</summary>
-        private GameObject CreatePlayerRow(Transform parent, int playerIndex, string rightText)
+        private GameObject CreatePlayerRow(Transform parent, int playerIndex, string rightText, string placePrefix = null)
         {
             var row = new GameObject($"PlayerRow{playerIndex}", typeof(RectTransform));
             row.transform.SetParent(parent, false);
@@ -1343,7 +1363,7 @@ namespace Jam
             // Name.
             var name = CreateText("Name", row.transform, 52, Theme.GetPlayerBrightColor(playerIndex));
             name.alignment = TextAnchor.MiddleLeft;
-            name.text = _flow.PlayerNames[playerIndex];
+            name.text = placePrefix != null ? $"{placePrefix}  {_flow.PlayerNames[playerIndex]}" : _flow.PlayerNames[playerIndex];
             SetAnchors(name.rectTransform, new Vector2(0, 0.5f), new Vector2(1, 0.5f),
                 new Vector2(leftPad, -40), new Vector2(-320, 40));
 
@@ -1389,7 +1409,7 @@ namespace Jam
             // Create all rows hidden, then reveal them one-by-one from last to first place.
             for (var i = 0; i < order.Count; i++)
             {
-                var row = CreatePlayerRow(_scoreboardList, order[i], SafeGet(_flow.Scores, order[i]).ToString());
+                var row = CreatePlayerRow(_scoreboardList, order[i], SafeGet(_flow.Scores, order[i]).ToString(), Place(i + 1));
                 var cg = row.AddComponent<CanvasGroup>();
                 cg.alpha = 0f;
             }
@@ -1424,6 +1444,7 @@ namespace Jam
                 if (cg == null) // destroyed by a rebuild
                     continue;
                 yield return UITween.FadeTo(this, cg, 1f, 0.3f);
+                yield return new WaitForSeconds(0.3f);
             }
         }
 
@@ -1442,13 +1463,19 @@ namespace Jam
             {
                 for (var i = _finalScoresList.childCount - 1; i >= 0; i--)
                     Destroy(_finalScoresList.GetChild(i).gameObject);
-                for (var i = 0; i < names.Count; i++)
+                // Sort by score descending so the winner (1st place) is at the TOP.
+                var order = new List<int>();
+                for (var i = 0; i < scores.Count; i++)
+                    order.Add(i);
+                order.Sort((a, b) => scores[b].CompareTo(scores[a]));
+                for (var k = 0; k < order.Count; k++)
                 {
-                    var row = CreateFinalScoreRow(_finalScoresList, names[i], colors[i], icons[i], scores[i], i == best);
+                    var i = order[k];
+                    var row = CreateFinalScoreRow(_finalScoresList, names[i], colors[i], icons[i], scores[i], Place(k + 1), k == 0);
                     var cg = row.AddComponent<CanvasGroup>();
                     cg.alpha = 0f;
                 }
-                StartCoroutine(AnimateFinalScores(best));
+                StartCoroutine(AnimateFinalScores(0)); // winner is the first (top) row
             }
 
             // Build the showcase once (when the archive changes).
@@ -1485,7 +1512,7 @@ namespace Jam
             return (names, colors, icons, scores);
         }
 
-        private GameObject CreateFinalScoreRow(Transform parent, string name, int colorIndex, int iconIndex, int score, bool isWinner)
+        private GameObject CreateFinalScoreRow(Transform parent, string name, int colorIndex, int iconIndex, int score, string place, bool isWinner)
         {
             var row = new GameObject("FinalScoreRow", typeof(RectTransform));
             row.transform.SetParent(parent, false);
@@ -1515,7 +1542,7 @@ namespace Jam
 
             var label = CreateText("Label", row.transform, 52, isWinner ? Theme.accent : Theme.text);
             label.alignment = TextAnchor.MiddleLeft;
-            label.text = isWinner ? $"{name}  👑" : name;
+            label.text = isWinner ? $"{place}  {name}  👑" : $"{place}  {name}";
             SetAnchors(label.rectTransform, new Vector2(0, 0.5f), new Vector2(1, 0.5f),
                 new Vector2(leftPad, -40), new Vector2(-200, 40));
 
@@ -1562,7 +1589,7 @@ namespace Jam
 
             var x = 0f;
             var spacing = 48f;
-            var thumbSize = 384f;
+            var thumbSize = 500f;
             for (var i = 0; i < _flow.ArchiveCount; i++)
             {
                 var thumbGo = new GameObject($"Thumb{i}", typeof(RectTransform));
@@ -1584,9 +1611,16 @@ namespace Jam
                     sc.interactable = false;
                     sc.SetStrokeData(strokes);
                 }
+
+                // Prompt label centered below the canvas.
+                var prompt = CreateText("Prompt", thumbGo.transform, 34, Theme.text);
+                prompt.text = _flow.ArchivePrompt(i).ToUpperInvariant();
+                SetAnchors(prompt.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    new Vector2(-220, -70), new Vector2(220, -20));
+
                 x += thumbSize + spacing;
             }
-            _showcaseContent.sizeDelta = new Vector2(x, thumbSize);
+            _showcaseContent.sizeDelta = new Vector2(x, thumbSize + 160);
         }
 
         private IEnumerator ScrollShowcase()
@@ -1705,6 +1739,44 @@ namespace Jam
             }
         }
 
+        /// <summary>Ordinal suffix for a place (1st, 2nd, 3rd, 4th...).</summary>
+        private static string Place(int n)
+        {
+            var suffix = (n % 100) >= 11 && (n % 100) <= 13 ? "th"
+                : (n % 10) == 1 ? "st" : (n % 10) == 2 ? "nd" : (n % 10) == 3 ? "rd" : "th";
+            return n + suffix;
+        }
+
+        /// <summary>Keep the guess list within 90% of the screen width on narrow/mobile screens.</summary>
+        private void SizeGuessList()
+        {
+            if (_guessList == null || _rootRt == null)
+                return;
+            var rt = _guessList as RectTransform;
+            var w = Mathf.Min(1200f, _rootRt.rect.width * 0.9f);
+            rt.sizeDelta = new Vector2(w, rt.sizeDelta.y);
+        }
+
+        /// <summary>Keep the guess input within 90% of the screen width on narrow/mobile screens.</summary>
+        private void SizeGuessInput()
+        {
+            if (_guessInput == null || _rootRt == null)
+                return;
+            var rt = _guessInput.GetComponent<RectTransform>();
+            var w = Mathf.Min(1000f, _rootRt.rect.width * 0.9f);
+            rt.sizeDelta = new Vector2(w, rt.sizeDelta.y);
+        }
+
+        /// <summary>Position the "What is this?" label just below the reveal canvas.</summary>
+        private void SizeWhatIsThis()
+        {
+            if (_whatIsThisText == null || _revealWrap == null || _rootRt == null)
+                return;
+            var size = _revealWrap.sizeDelta.x;
+            var yFromTop = 110f + size + 30f;
+            _whatIsThisText.rectTransform.anchoredPosition = new Vector2(0f, -yFromTop);
+        }
+
         private static void SetActive(GameObject go, bool active)
         {
             if (go != null)
@@ -1762,12 +1834,11 @@ namespace Jam
             rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.sizeDelta = Vector2.zero;
 
-            var brush = CreateCursorImage("Brush", go.transform, Theme.brushCursorSprite, new Vector2(192, 192));
-            var paw = CreateCursorImage("Paw", go.transform, Theme.pawSprite != null ? Theme.pawSprite : Theme.brushCursorSprite, new Vector2(160, 160));
-            var arm = CreateCursorImage("Arm", go.transform, Theme.armSprite != null ? Theme.armSprite : Theme.brushCursorSprite, new Vector2(72, 240));
+            // Single combined paw/brush sprite (the arm is part of the art).
+            var tip = CreateCursorImage("Tip", go.transform, Theme.pawSprite != null ? Theme.pawSprite : Theme.brushCursorSprite, new Vector2(192, 192));
 
             var cursor = go.AddComponent<BrushCursor>();
-            cursor.Init(brush, paw, arm);
+            cursor.Init(tip);
             go.SetActive(false);
             return cursor;
         }

@@ -201,9 +201,8 @@ namespace Jam
         {
             if (_brushCursor == null)
                 return;
-            var overCanvas = _display != null &&
-                RectTransformUtility.RectangleContainsScreenPoint(_display.rectTransform, screenPos, null);
-            var show = interactable && overCanvas;
+            // Visible for the whole drawing phase, not just while hovering the canvas.
+            var show = interactable;
             if (_brushCursor.gameObject.activeSelf != show)
                 _brushCursor.gameObject.SetActive(show);
             if (!show)

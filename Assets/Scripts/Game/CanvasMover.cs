@@ -142,6 +142,15 @@ namespace Jam
                 _spinIntegral = 0f;
                 _spinTotalIntegral = IntegrateCurve(spin.amplitudeCurve, 64);
             }
+            // Reset to the centered resting pose BEFORE capturing the base, so a stale
+            // offset from a previous round (e.g. leftover sway) can't linger and shift
+            // the canvas off-center on the next round.
+            if (_rt != null)
+            {
+                _rt.anchoredPosition = Vector2.zero;
+                _rt.localRotation = Quaternion.identity;
+                _rt.localScale = Vector3.one;
+            }
             CaptureBase();
         }
 

@@ -94,6 +94,7 @@ namespace Jam
         private readonly List<int> _playerColor = new List<int>();
         private readonly List<int> _playerIcon = new List<int>();
         private int _localIndex = -1; // client-side: this client's index (set by the server)
+        private string _lastParsedPlayerList = ""; // last encoded player list we parsed into the mirrors
 
         // Per-canvas state (canvas k = player k's drawing).
         private readonly SyncList<string> _canvasStrokes = new SyncList<string>(); // round-tagged stroke JSON
@@ -310,6 +311,11 @@ namespace Jam
                 // listening. Without this, a phase change sent during the spawn race
                 // can be lost, leaving a client stuck on the waiting screen.
                 ClientReadyRpc();
+
+                // Seed the player-list mirrors from the SyncVar's current value. PurrNet
+                // delivers the initial SyncVar state before OnSpawned but may not fire
+                // onChanged for it, so without this a client would show an empty list.
+                EnsurePlayerStateParsed();
             }
 
             var name = GetLocalDisplayName();
@@ -351,6 +357,10 @@ namespace Jam
             _timer.onTimerSecondTick += OnTimerTick;
             _timer.onTimerEnd += OnLocalTimerEnd; // submit first...
             _timer.onTimerEnd += OnTimerEnd;      // ...then advance phase
+
+            // Seed the player-list mirrors in case the SyncVar value already arrived
+            // (e.g. on a re-enable) without firing onChanged.
+            EnsurePlayerStateParsed();
         }
 
         private void OnDisable()
@@ -406,6 +416,24 @@ namespace Jam
         private void OnPlayerListChanged(string _)
         {
             ParsePlayerList(_playerListSync.value);
+            onStateChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Re-parse the authoritative player list SyncVar into the local mirror lists.
+        /// PurrNet delivers a SyncVar's initial value to a newly-spawned client WITHOUT
+        /// firing onChanged (Packer.Transform no-ops when the value equals the client's
+        /// default), so we must seed the mirrors from the current value rather than rely
+        /// solely on the change event. Idempotent; fires onStateChanged only when the
+        /// encoded value actually changed.
+        /// </summary>
+        public void EnsurePlayerStateParsed()
+        {
+            var data = _playerListSync.value;
+            if (data == _lastParsedPlayerList)
+                return;
+            _lastParsedPlayerList = data;
+            ParsePlayerList(data);
             onStateChanged?.Invoke();
         }
 
@@ -620,8 +648,10 @@ namespace Jam
                 return;
             _readyClients.Add(info.sender);
             // Re-send the authoritative player list + this client's index, in case the
-            // initial SyncVar state was missed during the spawn race.
-            SendPlayerStateTo(info.sender, _playerListSync.value, IndexOfPlayer(info.sender));
+            // initial SyncVar state was missed during the spawn race. Only send when we
+            // actually have players, so an empty list can't wipe a populated mirror.
+            if (_playerNames.Count > 0)
+                SendPlayerStateTo(info.sender, _playerListSync.value, IndexOfPlayer(info.sender));
             TryAutoStart();
         }
 

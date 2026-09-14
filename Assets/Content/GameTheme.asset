@@ -23,19 +23,19 @@ MonoBehaviour:
   canvasBorder: {r: 0.9, g: 0.7, b: 0.1, a: 1}
   panelSprite: {fileID: 0}
   borderSprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  shadowSprite: {fileID: 21300000, guid: af136acb51fde1b48929b01a08f79e84, type: 3}
+  shadowSprite: {fileID: 0}
   brushCursorSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  pawSprite: {fileID: 6032170974666196668, guid: 6504898ad77030c41bf2d694c6f54bd8, type: 3}
-  armSprite: {fileID: 21300000, guid: aa6146b7f7e74854a97aa07fb1e57671, type: 3}
+  pawSprite: {fileID: 21300000, guid: a8db7c6233aabd143b3a810f18f288a7, type: 3}
+  armSprite: {fileID: 0}
   boldFont: {fileID: 12800000, guid: e64c8990e9fcede4cbbc06381c456564, type: 3}
   lightFont: {fileID: 12800000, guid: 4704ad658117cd947b6f797b79547055, type: 3}
   modeBackgrounds:
-  - {fileID: 21300000, guid: aa6146b7f7e74854a97aa07fb1e57671, type: 3}
   - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
   - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
   - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  - {fileID: 21300000, guid: 1d4c6062c0e279f45b0d4889c87f4d64, type: 3}
-  - {fileID: 21300000, guid: aa6146b7f7e74854a97aa07fb1e57671, type: 3}
+  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
+  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
+  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
   wheelSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
   boatSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
   waterSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
