@@ -59,6 +59,9 @@ namespace Jam
         /// <summary>Fired whenever a stroke is committed (drawn) or removed (undo).</summary>
         public event Action onStrokesChanged;
 
+        /// <summary>Fired when the player starts a new stroke (pointer down on the canvas).</summary>
+        public event Action onStrokeStart;
+
         public int StrokeCount => _strokes.Count;
 
         private void Awake()
@@ -172,6 +175,7 @@ namespace Jam
                 _current.points.Add(_lastPixel);
                 DrawDisc(_lastPixel, _brushSize, _brushColor);
                 _texture.Apply();
+                onStrokeStart?.Invoke();
             }
             else if (press.isPressed && _drawing)
             {

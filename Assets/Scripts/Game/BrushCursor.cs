@@ -91,7 +91,7 @@ namespace Jam
             // maps to the drawing area. The tilt lerps toward its target for a smooth
             // transition instead of snapping.
             var targetTilt = Mathf.Clamp(local.x / _canvasHalfWidth, -1f, 1f) * 50f;
-            _currentTilt = Mathf.Lerp(_currentTilt, targetTilt, Time.deltaTime * 8f);
+            _currentTilt = Mathf.Lerp(_currentTilt, targetTilt, Time.deltaTime * 6f);
             var osc = Mathf.Sin(_time * 1.4f) * 5f;
             _tipRt.localRotation = Quaternion.Euler(0f, 0f, _currentTilt + osc);
         }

@@ -9,6 +9,7 @@ namespace Jam
     public enum MovingPhase
     {
         Waiting,    // waiting for players
+        Tutorial,   // quick how-to-play screen (host advances)
         Drawing,    // all players draw simultaneously on their own canvas (~30s)
         Guessing,   // canvases revealed one-by-one; others guess
         Scoreboard, // show scores
@@ -714,6 +715,14 @@ namespace Jam
         private void StartGame()
         {
             _round.value = 1;
+            SetPhase(MovingPhase.Tutorial);
+        }
+
+        /// <summary>Host-only: advance from the tutorial to the first drawing phase.</summary>
+        public void HostStartDrawing()
+        {
+            if (!isServer || _phase.value != MovingPhase.Tutorial)
+                return;
             SetPhase(MovingPhase.Drawing);
         }
 
@@ -726,6 +735,9 @@ namespace Jam
 
             switch (newPhase)
             {
+                case MovingPhase.Tutorial:
+                    // No timer — stays until the host advances to Drawing.
+                    break;
                 case MovingPhase.Drawing:
                     SetupRound();
                     // Wait for the intro (prompt + countdown) before starting the draw timer.

@@ -11,7 +11,8 @@ namespace Jam
     public class CanvasShadow : MonoBehaviour
     {
         public RectTransform canvasRect;
-        public Vector2 offset = new Vector2(16, -16);
+        [Tooltip("Shadow offset as a fraction of the canvas size (e.g. 0.08 = 8% of the canvas).")]
+        public Vector2 offset = new Vector2(0.08f, -0.08f);
 
         private RectTransform _rt;
 
@@ -24,9 +25,12 @@ namespace Jam
         {
             if (_rt == null || canvasRect == null)
                 return;
-            // Convert the screen-space offset into the canvas's local space, accounting
-            // for the canvas's current rotation/scale.
-            var local = canvasRect.InverseTransformVector(new Vector3(offset.x, offset.y, 0f));
+            // Scale the offset with the canvas size so the shadow stays proportional on
+            // any screen, then convert into the canvas's local space (accounting for the
+            // canvas's current rotation/scale from the mover).
+            var canvasSize = canvasRect.rect.size;
+            var scaled = new Vector2(offset.x * canvasSize.x, offset.y * canvasSize.y);
+            var local = canvasRect.InverseTransformVector(new Vector3(scaled.x, scaled.y, 0f));
             _rt.anchoredPosition = new Vector2(local.x, local.y);
         }
     }

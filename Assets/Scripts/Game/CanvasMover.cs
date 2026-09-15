@@ -75,7 +75,6 @@ namespace Jam
         private MovementMode _mode = MovementMode.None;
         private float _duration = 1f;
         private float _elapsed;
-        private float _spinIntegral;
         private float _spinTotalIntegral = 1f;
         private RectTransform _rt;
         private Vector2 _basePos;
@@ -85,9 +84,12 @@ namespace Jam
         // Per-frame computed animation state, exposed for decorative props
         // (CanvasModeProps) so they stay perfectly in sync with the canvas.
         private Vector2 _swayOffset;
+        private float _swayVelocity;
         private float _wobbleAngle;
+        private float _wobbleVelocity;
         private float _spinAngle;
         private Vector2 _shakeOffset;
+        private float _shakeVelocity;
         private float _zoomScale;
         private float _zoomPhase;
 
@@ -104,9 +106,15 @@ namespace Jam
 
         // Per-mode computed state (updated every frame while the mode is active).
         public Vector2 SwayOffset => _swayOffset;
+        /// <summary>Horizontal sway velocity in px/s (for audio modulation).</summary>
+        public float SwayVelocity => _swayVelocity;
         public float WobbleAngle => _wobbleAngle;
+        /// <summary>Wobble angular velocity in deg/s (for audio modulation).</summary>
+        public float WobbleVelocity => _wobbleVelocity;
         public float SpinAngle => _spinAngle;
         public Vector2 ShakeOffset => _shakeOffset;
+        /// <summary>Shake speed in px/s (for audio modulation).</summary>
+        public float ShakeVelocity => _shakeVelocity;
         public float ZoomScale => _zoomScale;
         /// <summary>Zoom oscillation 0..1 (1 = most zoomed out / smallest).</summary>
         public float ZoomPhase => _zoomPhase;
@@ -139,7 +147,7 @@ namespace Jam
             _elapsed = 0f;
             if (mode == MovementMode.Spin)
             {
-                _spinIntegral = 0f;
+                _spinAngle = 0f;
                 _spinTotalIntegral = IntegrateCurve(spin.amplitudeCurve, 64);
             }
             // Reset to the centered resting pose BEFORE capturing the base, so a stale
@@ -159,9 +167,12 @@ namespace Jam
         {
             _mode = MovementMode.None;
             _swayOffset = Vector2.zero;
+            _swayVelocity = 0f;
             _wobbleAngle = 0f;
+            _wobbleVelocity = 0f;
             _spinAngle = 0f;
             _shakeOffset = Vector2.zero;
+            _shakeVelocity = 0f;
             _zoomScale = 1f;
             _zoomPhase = 0f;
             if (_rt != null)
@@ -189,10 +200,13 @@ namespace Jam
                     ApplyWobble(t);
                     break;
                 case MovementMode.Spin:
-                    // Accumulate the integral of the amplitude curve so the rotation is
-                    // continuous (speed follows the curve) instead of easing to a stop.
-                    _spinIntegral += spin.amplitudeCurve.Evaluate(t) * (Time.deltaTime / _duration);
-                    ApplySpin(t);
+                    // Continuous rotation: accumulate the angle each frame so the canvas
+                    // keeps spinning for the whole duration and never stops early. The
+                    // rate follows the amplitude curve, normalized so the total is
+                    // ~baseAmplitude degrees over the intended duration.
+                    _spinAngle -= spin.baseAmplitude * spin.amplitudeCurve.Evaluate(t) *
+                        (Time.deltaTime / (_duration * _spinTotalIntegral));
+                    ApplySpin();
                     break;
                 case MovementMode.Shake:
                     ApplyShake(t);
@@ -207,8 +221,11 @@ namespace Jam
         {
             var amp = sway.baseAmplitude * sway.amplitudeCurve.Evaluate(t);
             var freq = sway.baseFrequency * sway.frequencyCurve.Evaluate(t);
+            var prevX = _swayOffset.x;
             var x = Mathf.Sin(_elapsed * freq * Mathf.PI * 2f) * amp;
             _swayOffset = new Vector2(x, 0f);
+            // Horizontal velocity (px/s) via finite difference, for audio modulation.
+            _swayVelocity = Time.deltaTime > 0f ? (x - prevX) / Time.deltaTime : 0f;
             _rt.anchoredPosition = _basePos + _swayOffset;
         }
 
@@ -216,21 +233,18 @@ namespace Jam
         {
             var amp = wobble.baseAmplitude * wobble.amplitudeCurve.Evaluate(t);
             var freq = wobble.baseFrequency * wobble.frequencyCurve.Evaluate(t);
+            var prevZ = _wobbleAngle;
             var z = Mathf.Sin(_elapsed * freq * Mathf.PI * 2f) * amp;
             _wobbleAngle = z;
+            // Angular velocity (deg/s) via finite difference, for audio modulation.
+            _wobbleVelocity = Time.deltaTime > 0f ? (z - prevZ) / Time.deltaTime : 0f;
             _rt.localRotation = _baseRot * Quaternion.Euler(0f, 0f, z);
         }
 
-        private void ApplySpin(float t)
+        private void ApplySpin()
         {
-            // Continuous clockwise rotation: the angle is the integral of the amplitude
-            // curve over time, so the canvas keeps spinning (speed follows the curve) and
-            // completes `spin.baseAmplitude` degrees over the round — it does NOT ease to
-            // a stop near the end. Negative Z = clockwise in Unity.
-            var progress = _spinTotalIntegral > 0f ? Mathf.Clamp01(_spinIntegral / _spinTotalIntegral) : t;
-            var z = -spin.baseAmplitude * progress;
-            _spinAngle = z;
-            _rt.localRotation = _baseRot * Quaternion.Euler(0f, 0f, z);
+            // Negative Z = clockwise in Unity.
+            _rt.localRotation = _baseRot * Quaternion.Euler(0f, 0f, _spinAngle);
         }
 
         /// <summary>Numeric integral of a curve over [0,1] (trapezoid rule).</summary>
@@ -254,9 +268,12 @@ namespace Jam
         {
             var amp = shake.baseAmplitude * shake.amplitudeCurve.Evaluate(t);
             var freq = shake.baseFrequency * shake.frequencyCurve.Evaluate(t);
+            var prev = _shakeOffset;
             var x = (Mathf.PerlinNoise(_elapsed * freq, 0f) - 0.5f) * 2f * amp;
             var y = (Mathf.PerlinNoise(0f, _elapsed * freq) - 0.5f) * 2f * amp;
             _shakeOffset = new Vector2(x, y);
+            // Shake speed (px/s) via finite difference, for audio modulation.
+            _shakeVelocity = Time.deltaTime > 0f ? (_shakeOffset - prev).magnitude / Time.deltaTime : 0f;
             _rt.anchoredPosition = _basePos + _shakeOffset;
         }
 

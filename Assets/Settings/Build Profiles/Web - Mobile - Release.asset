@@ -869,6 +869,7 @@ MonoBehaviour:
     - line: '|   webEnableSubmoduleStrippingCompatibility: 0'
     - line: '|   webProgressiveAssetLoading: 0'
     - line: '|   scriptingDefineSymbols:'
+    - line: '|     Standalone: SENTIS_ANALYTICS_ENABLED'
     - line: '|     WebGL: SENTIS_ANALYTICS_ENABLED'
     - line: '|   additionalCompilerArguments: {}'
     - line: '|   platformArchitecture: {}'

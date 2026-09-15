@@ -288,7 +288,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Jam.MovingCanvasUI
   _flow: {fileID: 0}
   _theme: {fileID: 11400000, guid: d29bfacf901a1004595e6aa6b2dbebe1, type: 2}
-  _sfx: {fileID: 0}
+  _sfx: {fileID: 11400000, guid: 7c1e5a9d4b3f4e0a8d2c6f1b9e5a3d70, type: 2}
   _buttonStyle: {fileID: 11400000, guid: ba8814efb1ff53a4fb0dd5cd81c83bc0, type: 2}
 --- !u!114 &1245722542
 MonoBehaviour:
@@ -314,12 +314,12 @@ MonoBehaviour:
   _invertedPathToNearestParent: 
   _directChildren: []
   _drawTime: 20
-  _guessTime: 15
-  _scoreboardTime: 10
+  _guessTime: 2
+  _scoreboardTime: 2
   _finalTime: 60
   _introTime: 6
   _maxRounds: 5
-  _roundModes: 0100000003000000020000000400000005000000i
+  _roundModes: 0300000004000000040000000300000002000000i
   _allowSinglePlayer: 1
   _deck: {fileID: 0}
   _movementConfig: {fileID: 11400000, guid: cf3ee47d319ce8e4796e980e249ef1cc, type: 2}

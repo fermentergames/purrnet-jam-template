@@ -41,11 +41,19 @@ namespace Jam
         private Button _startButton;
         private Transform _waitingList;
 
+        // Tutorial
+        private GameObject _tutorialPanel;
+        private Image _tutorialImage;
+        private Text _tutorialText;
+        private Button _tutorialButton;
+
         // Drawing
         private StrokeCanvas _drawCanvas;
         private BrushCursor _brushCursor;
         private CanvasMover _drawMover;
         private CanvasModeProps _modeProps;
+        private bool _canvasWasSpringIntro;
+        private MovementAudio _movementAudio;
         private RectTransform _canvasWrap;
         private RectTransform _rootRt;
         private RectTransform _rawRt;
@@ -55,6 +63,11 @@ namespace Jam
         private RectTransform _backdropRt;
         private Image _drawingPanelImage;
         private Image _modeBackground;
+        private Image _waitingBg;
+        private Image _tutorialBg;
+        private Image _guessingBg;
+        private Image _scoreboardBg;
+        private Image _finalBg;
         private Sprite _pillSprite;
         private int _pillRadius = -1;
         private int _lastScreenW = -1;
@@ -174,6 +187,13 @@ namespace Jam
                 SubmitGuess();
         }
 
+        /// <summary>Enable/disable movement ambience (loops + trampoline boing).</summary>
+        private void SetMovementAudio(bool active)
+        {
+            if (_movementAudio != null)
+                _movementAudio.Active = active;
+        }
+
         // ---------------------------------------------------------------
         // UI construction
         // ---------------------------------------------------------------
@@ -219,12 +239,13 @@ namespace Jam
 
             // --- Waiting ---
             _waitingPanel = CreatePanel("Waiting", root.transform, new Color(0, 0, 0, 0));
+            _waitingBg = CreatePhaseBackground(_waitingPanel.transform);
             _waitingText = CreateText("WaitingText", _waitingPanel.transform, 40, Theme.text);
             SetAnchors(_waitingText.rectTransform, new Vector2(0.5f, 0.85f), new Vector2(0.5f, 0.85f),
                 new Vector2(-600, -40), new Vector2(600, 40));
             _startButton = CreateButton("StartButton", _waitingPanel.transform, "Start Game", Theme.accent, () => _flow.HostStartGame());
             SetAnchors(_startButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.4f), new Vector2(0.5f, 0.4f),
-                new Vector2(-200, -60), new Vector2(200, 60));
+                new Vector2(-240, -60), new Vector2(240, 60));
 
             var waitingListGo = new GameObject("WaitingList", typeof(RectTransform));
             waitingListGo.transform.SetParent(_waitingPanel.transform, false);
@@ -236,6 +257,36 @@ namespace Jam
             wlg.childControlHeight = false;
             SetAnchors(_waitingList as RectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-400, -200), new Vector2(400, 200));
+
+            // --- Tutorial ---
+            _tutorialPanel = CreatePanel("Tutorial", root.transform, new Color(0, 0, 0, 0));
+            _tutorialBg = CreatePhaseBackground(_tutorialPanel.transform);
+            _tutorialImage = CreatePanel("TutorialImage", _tutorialPanel.transform, Color.white).GetComponent<Image>();
+            if (Theme.tutorialImage != null)
+            {
+                _tutorialImage.sprite = Theme.tutorialImage;
+                _tutorialImage.type = Image.Type.Simple;
+            }
+            SetAnchors(_tutorialImage.rectTransform, new Vector2(0.5f, 0.7f), new Vector2(0.5f, 0.7f),
+                new Vector2(-400, -200), new Vector2(400, 200));
+
+            _tutorialText = CreateText("TutorialText", _tutorialPanel.transform, 38, Theme.text);
+            _tutorialText.alignment = TextAnchor.UpperCenter;
+            _tutorialText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _tutorialText.text = "Draw the prompt while your canvas is IN MOTION!\n\n" +
+                "Each round the canvas moves differently.\n\n" +
+                "Everyone draws at once, then you guess each other's drawings.";
+            var ttRt = _tutorialText.rectTransform;
+            ttRt.anchorMin = new Vector2(0.5f, 1f);
+            ttRt.anchorMax = new Vector2(0.5f, 1f);
+            ttRt.pivot = new Vector2(0.5f, 1f);
+            ttRt.sizeDelta = new Vector2(1200, 240);
+            ttRt.anchoredPosition = new Vector2(0f, -400f); // placeholder; SizeTutorial corrects
+
+            _tutorialButton = CreateButton("TutorialButton", _tutorialPanel.transform, "we get it!", Theme.accent, () => _flow.HostStartDrawing());
+            SetAnchors(_tutorialButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.12f), new Vector2(0.5f, 0.12f),
+                new Vector2(-200, -60), new Vector2(200, 60));
+            SizeTutorial();
 
             // --- Drawing ---
             _drawingPanel = CreatePanel("Drawing", root.transform, new Color(0, 0, 0, 0));
@@ -296,7 +347,7 @@ namespace Jam
                 new Vector2(-canvasSize / 2, -canvasSize / 2), new Vector2(canvasSize / 2, canvasSize / 2));
             var shadowFollow = shadow.AddComponent<CanvasShadow>();
             shadowFollow.canvasRect = _rawRt;
-            shadowFollow.offset = new Vector2(40, -40);
+            shadowFollow.offset = new Vector2(0.08f, -0.08f); // fraction of the canvas size
 
             // Border around the canvas (child of the moving container, BEHIND the drawing).
             if (Theme.borderSprite != null)
@@ -314,10 +365,14 @@ namespace Jam
                 new Vector2(-canvasSize / 2, -canvasSize / 2), new Vector2(canvasSize / 2, canvasSize / 2));
             _drawCanvas = drawGo.AddComponent<StrokeCanvas>();
             _drawCanvas.Init(raw);
+            _drawCanvas.onStrokeStart += () => SFX.Paint();
 
             // Decorative per-mode props (wheels, boat, record, springs, trampoline).
             _modeProps = rawGo.AddComponent<CanvasModeProps>();
             _modeProps.Init(_drawMover, Theme, _canvasWrap, _drawRt);
+
+            _movementAudio = rawGo.AddComponent<MovementAudio>();
+            _movementAudio.Init(_drawMover, _sfx);
 
             // Static background shape behind the moving canvas (does NOT move).
             var backdrop = new GameObject("CanvasBackdrop", typeof(RectTransform));
@@ -339,13 +394,13 @@ namespace Jam
 
             // Brush controls
             _undoButton = CreateButton("Undo", _drawingPanel.transform, "Undo", Theme.accent, () => _drawCanvas.Undo());
-            SetAnchors(_undoButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.2f), new Vector2(0.5f, 0.2f),
+            SetAnchors(_undoButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.15f), new Vector2(0.5f, 0.15f),
                 new Vector2(-320, -70), new Vector2(-80, 70));
             _undoGroup = _undoButton.gameObject.AddComponent<CanvasGroup>();
             _undoGroup.alpha = 0f;
 
             _submitButton = CreateButton("Submit", _drawingPanel.transform, "Submit", Theme.positive, SubmitDrawing);
-            SetAnchors(_submitButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.2f), new Vector2(0.5f, 0.2f),
+            SetAnchors(_submitButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.15f), new Vector2(0.5f, 0.15f),
                 new Vector2(-40, -70), new Vector2(320, 70));
             _submitGroup = _submitButton.gameObject.AddComponent<CanvasGroup>();
             _submitGroup.alpha = 0f;
@@ -362,6 +417,7 @@ namespace Jam
 
             // --- Guessing ---
             _guessingPanel = CreatePanel("Guessing", root.transform, new Color(0, 0, 0, 0));
+            _guessingBg = CreatePhaseBackground(_guessingPanel.transform);
             _guessingGroup = _guessingPanel.AddComponent<CanvasGroup>();
 
             // Reveal canvas — bigger, near the top.
@@ -445,8 +501,9 @@ namespace Jam
 
             // --- Scoreboard ---
             _scoreboardPanel = CreatePanel("Scoreboard", root.transform, new Color(0, 0, 0, 0));
+            _scoreboardBg = CreatePhaseBackground(_scoreboardPanel.transform);
             _scoreboardGroup = _scoreboardPanel.AddComponent<CanvasGroup>();
-            _scoreboardText = CreateText("ScoreboardText", _scoreboardPanel.transform, 40, Theme.text);
+            _scoreboardText = CreateText("ScoreboardText", _scoreboardPanel.transform, 38, Theme.text);
             SetAnchors(_scoreboardText.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1),
                 new Vector2(-600, -70), new Vector2(600, -10));
 
@@ -463,6 +520,7 @@ namespace Jam
 
             // --- Final ---
             _finalPanel = CreatePanel("Final", root.transform, new Color(0, 0, 0, 0));
+            _finalBg = CreatePhaseBackground(_finalPanel.transform);
             _finalGroup = _finalPanel.AddComponent<CanvasGroup>();
             _finalText = CreateText("FinalText", _finalPanel.transform, 44, Theme.text);
             SetAnchors(_finalText.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1),
@@ -501,7 +559,10 @@ namespace Jam
             SetAnchors(_endGameButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.09f), new Vector2(0.5f, 0.09f),
                 new Vector2(-200, -60), new Vector2(200, 60));
 
+            // Keep the HUD (top bar + timer line) above the phase panels — otherwise the
+            // drawing phase's full-screen mode background covers the timer bar.
             topBar.transform.SetAsLastSibling();
+            _timerBar.transform.SetAsLastSibling();
 
             Refresh();
         }
@@ -559,6 +620,8 @@ namespace Jam
                 if (bg != null)
                     SizeToCover(_modeBackground, bg);
             }
+            if (_flow != null && _flow.Phase != MovingPhase.Drawing)
+                ApplyPhaseBackground(_flow.Phase);
             SizeDrawingCanvas();
             SizeRevealCanvas();
             SizeGuessList();
@@ -593,12 +656,18 @@ namespace Jam
                 _countdown.text = _flow.TimeRemaining.ToString();
 
             SetActive(_waitingPanel, phase == MovingPhase.Waiting);
+            SetActive(_tutorialPanel, phase == MovingPhase.Tutorial);
             SetActive(_drawingPanel, phase == MovingPhase.Drawing);
             SetActive(_guessingPanel, phase == MovingPhase.Guessing);
             SetActive(_scoreboardPanel, phase == MovingPhase.Scoreboard);
             SetActive(_finalPanel, phase == MovingPhase.Final);
             if (_timerBar != null)
-                SetActive(_timerBar.gameObject, phase != MovingPhase.Waiting);
+                SetActive(_timerBar.gameObject, phase != MovingPhase.Waiting && phase != MovingPhase.Tutorial);
+
+            // Non-drawing phases get their own full-screen background (the drawing phase
+            // has its per-mode background applied via ApplyRoundTheming).
+            if (phase != MovingPhase.Drawing)
+                ApplyPhaseBackground(phase);
 
             // Play an entry transition when the phase changes.
             if (phase != _lastPhase)
@@ -611,6 +680,9 @@ namespace Jam
             {
                 case MovingPhase.Waiting:
                     RefreshWaiting();
+                    break;
+                case MovingPhase.Tutorial:
+                    RefreshTutorial();
                     break;
                 case MovingPhase.Drawing:
                     RefreshDrawing();
@@ -631,6 +703,8 @@ namespace Jam
         private void PlayPhaseEntry(MovingPhase phase)
         {
             SFX.PhaseChange();
+            if (phase != MovingPhase.Drawing)
+                SetMovementAudio(false); // stop movement FX when leaving the drawing phase
             switch (phase)
             {
                 case MovingPhase.Guessing:
@@ -667,6 +741,15 @@ namespace Jam
             var canStart = _flow.PlayerCount >= 2 || (_flow.AllowSinglePlayer && _flow.PlayerCount >= 1);
             _startButton.interactable = canStart;
             RebuildWaitingList();
+        }
+
+        private void RefreshTutorial()
+        {
+            // Size responsively now that layout is settled (also done on creation/resize).
+            SizeTutorial();
+            // Only the host can advance past the tutorial.
+            if (_tutorialButton != null)
+                _tutorialButton.gameObject.SetActive(_flow.IsHost);
         }
 
         private void RebuildWaitingList()
@@ -821,6 +904,7 @@ namespace Jam
                 ApplyRoundTheming(_flow.CurrentMovementMode);
                 if (_modeProps != null)
                     _modeProps.Configure(_flow.CurrentMovementMode);
+                SetMovementAudio(false); // movement FX wait until the intro is over
                 // _reasonText.text = ReasonForMode(_flow.CurrentMovementMode);
                 _submitButton.gameObject.SetActive(false);
                 _undoButton.gameObject.SetActive(false);
@@ -850,7 +934,19 @@ namespace Jam
                 labelGroup.alpha = 1f;
 
             // Canvas starts hidden below the screen; it slides in after the countdown.
-            _canvasWrap.anchoredPosition = new Vector2(0f, -1700f);
+            // Shake (jack-in-the-box): instead start tiny at the top of the box, then pop out.
+            _canvasWrap.localScale = Vector3.one;
+            _canvasWasSpringIntro = _flow.CurrentMovementMode == MovementMode.Shake
+                && _modeProps != null && _modeProps.SpringCanvasStartAP.HasValue;
+            if (_canvasWasSpringIntro)
+            {
+                _canvasWrap.anchoredPosition = _modeProps.SpringCanvasStartAP.Value;
+                _canvasWrap.localScale = Vector3.one * 0.001f; // start really small
+            }
+            else
+            {
+                _canvasWrap.anchoredPosition = new Vector2(0f, -1700f);
+            }
 
             // 1) Show "your prompt is..." first, hold for a second (prompt hidden).
             _introText.rectTransform.localScale = Vector3.zero;
@@ -858,6 +954,7 @@ namespace Jam
 
             // 2) Pop in the prompt, hold for 2 seconds.
             _introText.rectTransform.localScale = Vector3.one * 0.6f;
+            SFX.DrawingPrompt(); // the prompt is revealed to the player
             yield return UITween.ScaleTo(this, _introText.rectTransform, Vector3.one * 1.15f, 0.25f, EaseOut);
             yield return new WaitForSeconds(2f);
 
@@ -890,7 +987,7 @@ namespace Jam
             {
                 _countdownText.text = i.ToString();
                 _countdownText.rectTransform.localScale = Vector3.one * 0.6f;
-                SFX.Tick();
+                SFX.Tick(3 - i); // 0,1,2 -> the beeps climb in pitch as the count drops
                 yield return UITween.ScaleTo(this, _countdownText.rectTransform, Vector3.one, 0.2f, EaseOut);
                 yield return new WaitForSeconds(0.5f);
             }
@@ -899,11 +996,26 @@ namespace Jam
             _countdownGroup.gameObject.SetActive(false);
             _introLabelText.gameObject.SetActive(false); // hide the label after the intro
 
-            // Canvas slides in after the countdown.
-            yield return UITween.MoveTo(this, _canvasWrap, Vector2.zero, 0.4f, EaseOut);
+            // Canvas slides in after the countdown (jack-in-the-box: pops out — grows to
+            // full size while rising into place).
+            if (_modeProps != null)
+                _modeProps.SlideInWater();
+            if (_canvasWasSpringIntro)
+            {
+                if (_modeProps != null)
+                    _modeProps.OpenJackBox(); // swap the box to its "open" version
+                UITween.ScaleTo(this, _canvasWrap, Vector3.one, 0.4f, EaseOut); // runs in parallel
+                yield return UITween.MoveTo(this, _canvasWrap, Vector2.zero, 0.4f, EaseOut);
+                _canvasWrap.localScale = Vector3.one;
+            }
+            else
+            {
+                yield return UITween.MoveTo(this, _canvasWrap, Vector2.zero, 0.4f, EaseOut);
+            }
 
             // Show the brush controls (fade + slide in from below).
             ShowBrushControls();
+            SetMovementAudio(true); // canvas is drawable now — start movement FX
         }
 
         /// <summary>Fade in and slide up the Undo/Submit buttons after the intro.</summary>
@@ -995,6 +1107,7 @@ namespace Jam
             _drawMover.Reset();
             if (_modeProps != null)
                 _modeProps.Reset();
+            SetMovementAudio(false);
             //_drawStatus.text = "Submitted! Waiting for others...";
             _submitButton.gameObject.SetActive(false);
             _undoButton.gameObject.SetActive(false);
@@ -1337,15 +1450,28 @@ namespace Jam
             var row = new GameObject($"PlayerRow{playerIndex}", typeof(RectTransform));
             row.transform.SetParent(parent, false);
             var rowRt = row.GetComponent<RectTransform>();
-            rowRt.sizeDelta = new Vector2(0, 96);
+            rowRt.sizeDelta = new Vector2(0, 110);
+
+            var leftPad = 0f;
+
+            // Ordinal (1st/2nd/...) on the far left, in a larger font.
+            if (!string.IsNullOrEmpty(placePrefix))
+            {
+                var place = CreateText("Place", row.transform, 76, Theme.accent);
+                place.alignment = TextAnchor.MiddleCenter;
+                place.text = placePrefix;
+                SetAnchors(place.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f),
+                    new Vector2(0, -52), new Vector2(110, 52));
+                leftPad = 120f;
+            }
 
             // Color swatch.
             var swatch = CreatePanel("Swatch", row.transform, Theme.GetPlayerColor(playerIndex));
             SetAnchors(swatch.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f),
-                new Vector2(0, -36), new Vector2(72, 36));
+                new Vector2(leftPad, -40), new Vector2(leftPad + 72, 40));
 
             // Icon (optional).
-            var leftPad = 88f;
+            leftPad += 80f;
             var icon = Theme.GetPlayerIcon(playerIndex);
             if (icon != null)
             {
@@ -1356,25 +1482,26 @@ namespace Jam
                 iconImg.color = Color.white;
                 iconImg.raycastTarget = false;
                 SetAnchors(iconImg.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f),
-                    new Vector2(80, -36), new Vector2(152, 36));
-                leftPad = 168f;
+                    new Vector2(leftPad, -40), new Vector2(leftPad + 72, 40));
+                leftPad += 80f;
             }
 
             // Name.
-            var name = CreateText("Name", row.transform, 52, Theme.GetPlayerBrightColor(playerIndex));
+            var name = CreateText("Name", row.transform, 64, Theme.GetPlayerBrightColor(playerIndex));
             name.alignment = TextAnchor.MiddleLeft;
-            name.text = placePrefix != null ? $"{placePrefix}  {_flow.PlayerNames[playerIndex]}" : _flow.PlayerNames[playerIndex];
+            name.horizontalOverflow = HorizontalWrapMode.Overflow; // keep on one line
+            name.text = _flow.PlayerNames[playerIndex];
             SetAnchors(name.rectTransform, new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                new Vector2(leftPad, -40), new Vector2(-320, 40));
+                new Vector2(leftPad, -48), new Vector2(-300, 48));
 
             // Right label (e.g. score).
             if (!string.IsNullOrEmpty(rightText))
             {
-                var right = CreateText("Right", row.transform, 52, Theme.text);
+                var right = CreateText("Right", row.transform, 64, Theme.text);
                 right.alignment = TextAnchor.MiddleRight;
                 right.text = rightText;
                 SetAnchors(right.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f),
-                    new Vector2(-300, -40), new Vector2(-20, 40));
+                    new Vector2(-280, -48), new Vector2(-20, 48));
             }
             return row;
         }
@@ -1517,15 +1644,25 @@ namespace Jam
             var row = new GameObject("FinalScoreRow", typeof(RectTransform));
             row.transform.SetParent(parent, false);
             var rowRt = row.GetComponent<RectTransform>();
-            rowRt.sizeDelta = new Vector2(0, 84);
+            rowRt.sizeDelta = new Vector2(0, 96);
+
+            var leftPad = 0f;
+
+            // Ordinal on the far left, larger font.
+            var placeText = CreateText("Place", row.transform, 72, isWinner ? Theme.accent : Theme.text);
+            placeText.alignment = TextAnchor.MiddleCenter;
+            placeText.text = place;
+            SetAnchors(placeText.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f),
+                new Vector2(0, -46), new Vector2(100, 46));
+            leftPad = 110f;
 
             // Color swatch.
             var swatch = CreatePanel("Swatch", row.transform, Theme.GetPlayerColor(colorIndex));
             SetAnchors(swatch.GetComponent<RectTransform>(), new Vector2(0, 0.5f), new Vector2(0, 0.5f),
-                new Vector2(0, -30), new Vector2(56, 30));
+                new Vector2(leftPad, -34), new Vector2(leftPad + 60, 34));
 
             // Icon.
-            var leftPad = 68f;
+            leftPad += 68f;
             var icon = Theme.GetPlayerIcon(iconIndex);
             if (icon != null)
             {
@@ -1536,21 +1673,21 @@ namespace Jam
                 iconImg.color = Color.white;
                 iconImg.raycastTarget = false;
                 SetAnchors(iconImg.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f),
-                    new Vector2(60, -30), new Vector2(116, 30));
-                leftPad = 128f;
+                    new Vector2(leftPad, -34), new Vector2(leftPad + 60, 34));
+                leftPad += 68f;
             }
 
-            var label = CreateText("Label", row.transform, 52, isWinner ? Theme.accent : Theme.text);
+            var label = CreateText("Label", row.transform, 60, isWinner ? Theme.accent : Theme.text);
             label.alignment = TextAnchor.MiddleLeft;
-            label.text = isWinner ? $"{place}  {name}  👑" : $"{place}  {name}";
+            label.text = isWinner ? $"{name}  👑" : name;
             SetAnchors(label.rectTransform, new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                new Vector2(leftPad, -40), new Vector2(-200, 40));
+                new Vector2(leftPad, -44), new Vector2(-200, 44));
 
-            var right = CreateText("Score", row.transform, 52, Theme.text);
+            var right = CreateText("Score", row.transform, 60, Theme.text);
             right.alignment = TextAnchor.MiddleRight;
             right.text = score.ToString();
             SetAnchors(right.rectTransform, new Vector2(1, 0.5f), new Vector2(1, 0.5f),
-                new Vector2(-190, -40), new Vector2(-20, 40));
+                new Vector2(-190, -44), new Vector2(-20, 44));
             return row;
         }
 
@@ -1731,6 +1868,7 @@ namespace Jam
             switch (phase)
             {
                 case MovingPhase.Waiting: return "WAITING";
+                case MovingPhase.Tutorial: return "TUTORIAL";
                 case MovingPhase.Drawing: return "DRAWING";
                 case MovingPhase.Guessing: return "GUESSING";
                 case MovingPhase.Scoreboard: return "SCORES";
@@ -1777,6 +1915,36 @@ namespace Jam
             _whatIsThisText.rectTransform.anchoredPosition = new Vector2(0f, -yFromTop);
         }
 
+        /// <summary>Responsively size the tutorial image (fit within bounds, keep aspect) and text width.</summary>
+        private void SizeTutorial()
+        {
+            if (_tutorialImage == null || _rootRt == null)
+                return;
+            var screenW = _rootRt.rect.width;
+            var screenH = _rootRt.rect.height;
+            var maxW = screenW * 0.55f;
+            var maxH = screenH * 0.38f;
+            var sprite = _tutorialImage.sprite;
+            if (sprite != null && sprite.rect.width > 0f && sprite.rect.height > 0f)
+            {
+                var aspect = sprite.rect.width / sprite.rect.height;
+                var w = maxW;
+                var h = w / aspect;
+                if (h > maxH) { h = maxH; w = h * aspect; }
+                _tutorialImage.rectTransform.sizeDelta = new Vector2(w, h);
+            }
+            if (_tutorialText != null)
+            {
+                var rt = _tutorialText.rectTransform;
+                rt.sizeDelta = new Vector2(Mathf.Min(1200f, screenW * 0.85f), rt.sizeDelta.y);
+                // Larger text on mobile/portrait.
+                _tutorialText.fontSize = screenW < screenH ? 54 : 38;
+                // Top-anchor the text just below the image's bottom edge.
+                var imgBottomFromTop = screenH * 0.25f + _tutorialImage.rectTransform.sizeDelta.y * 0.5f;
+                rt.anchoredPosition = new Vector2(0f, -(imgBottomFromTop + 140f));
+            }
+        }
+
         private static void SetActive(GameObject go, bool active)
         {
             if (go != null)
@@ -1808,6 +1976,53 @@ namespace Jam
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             return go;
+        }
+
+        /// <summary>
+        /// A full-screen phase background (centered, stretched to cover like the drawing
+        /// phase's per-mode background). Hidden until ApplyPhaseBackground assigns a sprite.
+        /// </summary>
+        private Image CreatePhaseBackground(Transform parent)
+        {
+            var bg = CreatePanel("PhaseBg", parent, Color.white).GetComponent<Image>();
+            var rt = bg.rectTransform;
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            bg.transform.SetAsFirstSibling();
+            bg.gameObject.SetActive(false);
+            return bg;
+        }
+
+        /// <summary>Apply the themed background for a non-drawing phase (sized to cover).</summary>
+        private void ApplyPhaseBackground(MovingPhase phase)
+        {
+            Image bg = null;
+            switch (phase)
+            {
+                case MovingPhase.Waiting: bg = _waitingBg; break;
+                case MovingPhase.Tutorial: bg = _tutorialBg; break;
+                case MovingPhase.Guessing: bg = _guessingBg; break;
+                case MovingPhase.Scoreboard: bg = _scoreboardBg; break;
+                case MovingPhase.Final: bg = _finalBg; break;
+                default: return;
+            }
+            if (bg == null)
+                return;
+            var sprite = Theme.GetPhaseBackground(phase);
+            if (sprite != null)
+            {
+                bg.gameObject.SetActive(true);
+                bg.sprite = sprite;
+                bg.type = Image.Type.Simple;
+                bg.color = Color.white;
+                SizeToCover(bg, sprite);
+            }
+            else
+            {
+                bg.gameObject.SetActive(false);
+            }
         }
 
         private Image CreateBorder(Transform parent, Vector2 size, Sprite sprite, Color color)
@@ -1939,12 +2154,13 @@ namespace Jam
             button.targetGraphic = img;
             button.onClick.AddListener(() => { SFX.Tap(); onClick?.Invoke(); });
 
-            // Drop shadow below the pill — a tinted version of the button color.
+            // Drop shadow below the pill — a solid color, tinted darker by the shadow
+            // color's alpha (the lerp uses the alpha as the darkening amount).
             var shadowComp = go.AddComponent<Shadow>();
             var tintColor = style != null ? style.shadowColor : new Color(0, 0, 0, 0.4f);
             var tintStrength = tintColor.a;
             var shadowColor = Color.Lerp(color, tintColor, tintStrength);
-            shadowColor.a = tintStrength;
+            shadowColor.a = 1f; // solid (not transparent)
             shadowComp.effectColor = shadowColor;
             shadowComp.effectDistance = style != null ? style.shadowOffset : new Vector2(0, -6);
 
@@ -1966,6 +2182,14 @@ namespace Jam
             text.text = label;
             SetAnchors(text.rectTransform, new Vector2(0, 0.5f), new Vector2(1, 0.5f),
                 new Vector2(leftPad, -20), new Vector2(0, 20));
+            // Single light outline (4x vertices — safe) for readability.
+            var outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.4f);
+            outline.effectDistance = new Vector2(2f, -2f);
+            // Drop shadow under the text.
+            var textShadow = text.gameObject.AddComponent<Shadow>();
+            textShadow.effectColor = new Color(0f, 0f, 0f, 0.5f);
+            textShadow.effectDistance = new Vector2(0f, -4f);
             return button;
         }
 

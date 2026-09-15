@@ -31,6 +31,7 @@ namespace Jam
         public Sprite brushCursorSprite;
         public Sprite pawSprite;
         public Sprite armSprite;
+        public Sprite tutorialImage; // placeholder art for the tutorial phase
 
         [Header("Fonts (optional — falls back to built-in)")]
         public Font boldFont;   // important text (headers, prompts, scores)
@@ -39,6 +40,13 @@ namespace Jam
         [Header("Movement Mode Backgrounds (indexed by MovementMode)")]
         public Sprite[] modeBackgrounds;
 
+        [Header("Phase Backgrounds (non-drawing; falls back to default, then bg_studio_sqr)")]
+        public Sprite defaultPhaseBackground; // e.g. drag bg_studio_sqr here
+        public Sprite tutorialBackground;
+        public Sprite guessingBackground;
+        public Sprite scoreboardBackground;
+        public Sprite gameoverBackground;
+
         [Header("Movement Mode Props (optional — props hide if unset)")]
         public Sprite wheelSprite;
         public Sprite boatSprite;
@@ -46,6 +54,8 @@ namespace Jam
         public Sprite spindleSprite;
         public Sprite platterSprite;
         public Sprite springSprite;
+        public Sprite jackBoxSprite;
+        public Sprite jackBoxOpenSprite;
         public Sprite trampolineSprite;
 
         [Header("Player Palette (dark swatches)")]
@@ -98,6 +108,32 @@ namespace Jam
                 return null;
             return modeBackgrounds[i];
         }
+
+        /// <summary>
+        /// Background sprite for a non-drawing phase. Falls back to <see cref="defaultPhaseBackground"/>,
+        /// then to a "bg_studio_sqr" sprite in a Resources folder.
+        /// </summary>
+        public Sprite GetPhaseBackground(MovingPhase phase)
+        {
+            Sprite s = null;
+            switch (phase)
+            {
+                case MovingPhase.Waiting: s = tutorialBackground; break;
+                case MovingPhase.Tutorial: s = tutorialBackground; break;
+                case MovingPhase.Guessing: s = guessingBackground; break;
+                case MovingPhase.Scoreboard: s = scoreboardBackground; break;
+                case MovingPhase.Final: s = gameoverBackground; break;
+            }
+            if (s != null)
+                return s;
+            if (defaultPhaseBackground != null)
+                return defaultPhaseBackground;
+            if (_studioFallback == null)
+                _studioFallback = Resources.Load<Sprite>("bg_studio_sqr");
+            return _studioFallback;
+        }
+
+        private Sprite _studioFallback;
 
         public int PlayerColorCount => playerColors != null ? playerColors.Length : 0;
         public int PlayerIconCount => playerIcons != null ? playerIcons.Length : 0;

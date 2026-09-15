@@ -27,22 +27,30 @@ MonoBehaviour:
   brushCursorSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
   pawSprite: {fileID: 21300000, guid: a8db7c6233aabd143b3a810f18f288a7, type: 3}
   armSprite: {fileID: 0}
+  tutorialImage: {fileID: 21300000, guid: af136acb51fde1b48929b01a08f79e84, type: 3}
   boldFont: {fileID: 12800000, guid: e64c8990e9fcede4cbbc06381c456564, type: 3}
   lightFont: {fileID: 12800000, guid: 4704ad658117cd947b6f797b79547055, type: 3}
   modeBackgrounds:
-  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  - {fileID: 21300000, guid: ca2fc461b49e54444aca831150a87bbe, type: 3}
-  wheelSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  boatSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  waterSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  spindleSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  platterSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  springSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
-  trampolineSprite: {fileID: 21300000, guid: 2afd8dd9d4952324daff0c3f1855ca68, type: 3}
+  - {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  - {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  - {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  - {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  - {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  - {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  defaultPhaseBackground: {fileID: 21300000, guid: b248aaad618ff9c44953e827dc7c5f60, type: 3}
+  tutorialBackground: {fileID: 0}
+  guessingBackground: {fileID: 0}
+  scoreboardBackground: {fileID: 0}
+  gameoverBackground: {fileID: 0}
+  wheelSprite: {fileID: 21300000, guid: 7af004baa6024a347ad04ec9828ae353, type: 3}
+  boatSprite: {fileID: 21300000, guid: 8c7f54bd87de3a84cae57758461f2729, type: 3}
+  waterSprite: {fileID: 21300000, guid: 165043bd0b72b61418c412c1c30b1f2d, type: 3}
+  spindleSprite: {fileID: 0}
+  platterSprite: {fileID: 21300000, guid: 7a3bf8398cfaaf74bab613bfb17b5543, type: 3}
+  springSprite: {fileID: 21300000, guid: 485f8757c63308a469cbd013d75c8625, type: 3}
+  jackBoxSprite: {fileID: 21300000, guid: 9f25dedeb2ac96144a65c5daa534921c, type: 3}
+  jackBoxOpenSprite: {fileID: 21300000, guid: 8d7b97ecf2700ea468b95e00a9ec41e6, type: 3}
+  trampolineSprite: {fileID: 21300000, guid: 6446e68978d3cc249b1aa9b9290c8cc4, type: 3}
   playerColors:
   - {r: 0.78, g: 0.18, b: 0.18, a: 1}
   - {r: 0.18, g: 0.38, b: 0.78, a: 1}
